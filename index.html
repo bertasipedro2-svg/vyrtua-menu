@@ -61,7 +61,7 @@ dialog::backdrop{background:#0009}
 <header>
  <div class="top">
   <div><div class="logo"><span id="brandName">VYRTUA</span>.</div><div class="tag">MENU DIGITAL</div></div>
-  <div class="status">● DEMONSTRAÇÃO</div>
+  <div class="status" id="modeStatus">● DEMONSTRAÇÃO</div>
  </div>
  <div class="hero">
   <small>PEÇA SEM COMPLICAÇÃO</small>
@@ -76,7 +76,7 @@ dialog::backdrop{background:#0009}
  <div class="section-title" id="listTitle">Mais pedidos</div>
  <div class="grid" id="products"></div>
  <div class="promo"><strong>Seu negócio merece um menu assim.</strong><p>Catálogo digital personalizável para lanchonetes e lojas de açaí.</p></div>
- <div class="note">VYRTUA MENU · PROTÓTIPO VISUAL · PEDIDOS NÃO SÃO ENVIADOS</div>
+ <div class="note" id="modeNote"></div>
 </main>
 <div class="bottom">
  <div><small>SEU CARRINHO</small><strong id="cartSummary" aria-live="polite">0 itens · R$ 0,00</strong></div>
@@ -86,12 +86,17 @@ dialog::backdrop{background:#0009}
  <div class="dialog-head"><h2>Seu pedido</h2><button class="close" aria-label="Fechar pedido" onclick="document.getElementById('cartDialog').close()">✕</button></div>
  <div id="cartLines"></div>
  <div style="margin-top:15px;font-weight:900;font-size:20px" id="cartTotal">Total: R$ 0,00</div>
- <p style="font-size:12px;color:#777">Demonstração: os dados não são enviados nem salvos em um servidor.</p>
- <button class="checkout" onclick="alert('Esta é uma demonstração. O envio real será configurado em uma próxima etapa.')">Continuar pedido</button>
+ <p id="checkoutNote" style="font-size:12px;color:#777"></p><pre id="orderPreview" aria-live="polite" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+ <button class="checkout" id="checkoutButton" onclick="checkout()">Continuar pedido</button>
 </dialog>
 <script src="menu-config.js"></script>
 <script>
-const config=globalThis.MENU_CONFIG;
+function validConfig(c){
+ return !!c && typeof c.name==="string" && c.name.trim().length>0 && typeof c.demo==="boolean" && (c.demo || /^55[1-9][0-9]{9,10}$/.test(c.whatsapp)) && Array.isArray(c.items) && c.items.length>0 && c.items.every(p=>p && Number.isSafeInteger(p.id) && p.id>0 && typeof p.name==="string" && p.name.trim() && typeof p.cat==="string" && p.cat.trim() && p.cat!=="Todos" && typeof p.desc==="string" && typeof p.emoji==="string" && Number.isFinite(p.price) && p.price>=0 && p.price<=100000 && Math.abs(p.price*100-Math.round(p.price*100))<0.000001) && new Set(c.items.map(p=>p.id)).size===c.items.length;
+}
+const supplied=globalThis.MENU_CONFIG;
+const configOK=validConfig(supplied);
+const config=configOK?supplied:{name:"Configuração inválida",demo:true,whatsapp:"",items:[]};
 const items=config.items;
 const categories=["Todos",...new Set(items.map(p=>p.cat))];
 document.getElementById("brandName").textContent=config.name;
@@ -99,6 +104,14 @@ const esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const normalize=v=>String(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const totalCents=()=>items.reduce((s,p)=>s+Math.round(p.price*100)*(cart[p.id]||0),0);
 let active="Todos",cart=Object.create(null);
+const storageKey="vyrtua-cart-v1:"+JSON.stringify([config.name,config.demo,config.whatsapp,items.map(p=>[p.id,p.name,p.price])]);
+function restoreCart(){try{const saved=JSON.parse(localStorage.getItem(storageKey)||"{}");for(const p of items){const q=saved[p.id];if(Number.isInteger(q)&&q>0&&q<=99)cart[p.id]=q}}catch{}}
+function saveCart(){try{localStorage.setItem(storageKey,JSON.stringify(cart))}catch{}}
+restoreCart();
+function orderText(){return ["Pedido - "+config.name,...items.filter(p=>cart[p.id]).map(p=>cart[p.id]+" x "+p.name+" - "+money(Math.round(p.price*100)*cart[p.id]/100)),"Total: "+money(totalCents()/100),"Sujeito à confirmação do estabelecimento."].join("\n")}
+function checkoutUrl(){return configOK&&!config.demo&&Object.keys(cart).length?"https://wa.me/"+config.whatsapp+"?text="+encodeURIComponent(orderText()):null}
+function checkout(){if(!configOK||!Object.keys(cart).length)return;const url=checkoutUrl();if(url){window.location.href=url}else{document.getElementById("orderPreview").textContent="SIMULAÇÃO — nenhum pedido enviado\n"+orderText()}}
+
 const money=n=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 function renderCategories(){
  document.getElementById("categories").innerHTML=categories.map(c=>`<button class="cat ${active===c?"active":""}" data-category="${esc(c)}" aria-pressed="${active===c}">${esc(c)}</button>`).join("");
@@ -110,10 +123,12 @@ function renderProducts(){
  document.getElementById("products").innerHTML=list.length?list.map(p=>`<article class="product"><div class="photo">${esc(p.emoji)}</div><div class="info"><h3>${esc(p.name)}</h3><p>${esc(p.desc)}</p><div class="price-row"><span class="price">${money(p.price)}</span><button class="add" aria-label="Adicionar ${esc(p.name)}" data-add="${esc(p.id)}">+</button></div></div></article>`).join(""):'<div class="empty">Nenhum produto encontrado.</div>';
 }
 function setCategory(c){active=c;renderCategories();renderProducts()}
-function addItem(id){if(!items.some(p=>String(p.id)===String(id)))return;cart[id]=Math.min(99,(cart[id]||0)+1);renderCartSummary()}
-function changeItem(id,delta){if(!items.some(p=>String(p.id)===String(id)))return;cart[id]=Math.min(99,(cart[id]||0)+delta);if(cart[id]<=0)delete cart[id];renderCartSummary();openCart()}
+function addItem(id){if(!items.some(p=>String(p.id)===String(id)))return;cart[id]=Math.min(99,(cart[id]||0)+1);saveCart();renderCartSummary()}
+function changeItem(id,delta){if(delta!==1&&delta!==-1)return;if(!items.some(p=>String(p.id)===String(id)))return;cart[id]=Math.min(99,(cart[id]||0)+delta);if(cart[id]<=0)delete cart[id];saveCart();renderCartSummary();openCart()}
 function renderCartSummary(){
  const qty=Object.values(cart).reduce((a,b)=>a+b,0);
+ document.getElementById("checkoutButton").disabled=!configOK||qty===0;
+ document.getElementById("orderPreview").textContent="";
  const total=totalCents()/100;
  document.getElementById("cartSummary").textContent=`${qty} ${qty===1?"item":"itens"} · ${money(total)}`;
 }
@@ -128,6 +143,9 @@ document.getElementById("search").addEventListener("input",renderProducts);
 document.getElementById("categories").addEventListener("click",e=>{const b=e.target.closest("[data-category]");if(b)setCategory(b.dataset.category)});
 document.getElementById("products").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(b)addItem(b.dataset.add)});
 document.getElementById("cartLines").addEventListener("click",e=>{const b=e.target.closest("[data-change]");if(b)changeItem(b.dataset.change,Number(b.dataset.delta))});
+document.getElementById("modeStatus").textContent=!configOK?"INDISPONÍVEL":config.demo?"● DEMONSTRAÇÃO":"● PEDIDOS";
+document.getElementById("modeNote").textContent=config.demo?"Demonstração: nenhum pedido enviado.":"Pedidos sujeitos à confirmação.";
+document.getElementById("checkoutNote").textContent=config.demo?"Simulação local.":"Você revisará a mensagem no WhatsApp antes de enviar.";
 renderCategories();renderProducts();renderCartSummary();
 </script>
 </body>
