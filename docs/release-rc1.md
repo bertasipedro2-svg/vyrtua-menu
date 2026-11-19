@@ -1,0 +1,3 @@
+# V1.0-RC1 — candidate only
+
+Local Node 22.16.0: 15 tests passed, 0 failed, 0 skipped, 165.136753 ms. All six original source/config/test/template blobs matched GitHub hashes. Three new template tests verify configuration, rendering in mocked DOM, totals (R$30, R$40, R$72), persistence and demo checkout without navigation. Three standalone HTML demos generated locally with embedded configs. Actions connector returned empty results for workflow and kit commits; its query filters PR runs, so push execution remains unknown. No browser approval, physical Safari test or real WhatsApp confirmation. No app defect proven by current tests. No deploy or merge. RC1 designation is documentation, not a release/tag. No Lovable or charges authorized.
