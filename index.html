@@ -55,6 +55,14 @@ dialog::backdrop{background:#0009}
 .field{width:100%;padding:12px;border:1px solid #ddd;border-radius:10px;margin-top:10px}
 .checkout{width:100%;margin-top:15px;padding:14px;background:#111;color:white;border:0;border-radius:12px;font-weight:800}
 @media(min-width:600px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.photo{height:155px}main{padding-left:22px;padding-right:22px}}
+
+/* Commercial presentation and mobile accessibility */
+:root{--muted:#595959}
+button:focus-visible,input:focus-visible{outline:3px solid #7550c0;outline-offset:3px}
+.add,.close{min-width:44px;min-height:44px}.cat{min-height:44px}.cart-line button{min-width:44px;min-height:44px}
+.product{box-shadow:0 4px 16px #17171709}.photo{background:linear-gradient(145deg,#eee7ff,#f8f4ff)}
+.info h3,.price,.logo{overflow-wrap:anywhere}.note{color:#595959}.checkout:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:360px){.grid{grid-template-columns:1fr}.top{flex-wrap:wrap}.cart-line{flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -75,7 +83,7 @@ dialog::backdrop{background:#0009}
  <div class="categories" id="categories"></div>
  <div class="section-title" id="listTitle">Mais pedidos</div>
  <div class="grid" id="products"></div>
- <div class="promo"><strong>Seu negócio merece um menu assim.</strong><p>Catálogo digital personalizável para lanchonetes e lojas de açaí.</p></div>
+ <div class="promo" id="demoPromo"><strong>Conheça nosso cardápio digital.</strong><p>Produtos e valores ilustrativos nesta demonstração.</p></div>
  <div class="note" id="modeNote"></div>
 </main>
 <div class="bottom">
@@ -100,6 +108,7 @@ const config=configOK?supplied:{name:"Configuração inválida",demo:true,whatsa
 const items=config.items;
 const categories=["Todos",...new Set(items.map(p=>p.cat))];
 document.getElementById("brandName").textContent=config.name;
+document.getElementById("demoPromo").hidden=!config.demo;
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const normalize=v=>String(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 const totalCents=()=>items.reduce((s,p)=>s+Math.round(p.price*100)*(cart[p.id]||0),0);
